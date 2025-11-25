@@ -18,6 +18,21 @@ public class excersise2load : MonoBehaviour
 
     private bool _isRunning;
 
+    private void Start()
+    {
+        // Ensure countdown text is initially hidden
+        if (countdownText != null)
+        {
+            countdownText.gameObject.SetActive(false);
+        }
+        
+        // Ensure workout HUD is initially hidden
+        if (workoutHudPanel != null)
+        {
+            workoutHudPanel.SetActive(false);
+        }
+    }
+
     // Called by SpatialUIButton → Press End()
     public void StartWorkoutSequence()
     {
@@ -28,26 +43,56 @@ public class excersise2load : MonoBehaviour
 
     private IEnumerator CountdownRoutine()
     {
-        startContentRoot.SetActive(false);  // hide start screen
-        countdownText.gameObject.SetActive(true);
+        // Show countdown text first (before hiding parent)
+        if (countdownText != null)
+        {
+            countdownText.gameObject.SetActive(true);
+            // Ensure it's visible even if parent is hidden by moving it to panel root temporarily
+            if (countdownText.transform.parent != startPanelRoot.transform)
+            {
+                countdownText.transform.SetParent(startPanelRoot.transform, true);
+            }
+        }
+
+        // Hide start content (button) but keep countdown visible
+        if (startContentRoot != null)
+        {
+            startContentRoot.SetActive(false);
+        }
 
         int t = countdownSeconds;
 
         while (t > 0)
         {
-            countdownText.text = t.ToString();
+            if (countdownText != null)
+            {
+                countdownText.text = t.ToString();
+            }
             yield return new WaitForSeconds(1f);
             t--;
         }
 
-        countdownText.text = "GO!";
+        if (countdownText != null)
+        {
+            countdownText.text = "GO!";
+        }
         yield return new WaitForSeconds(0.5f);
 
-        // Hide whole menu
-        startPanelRoot.SetActive(false);
+        // Hide countdown text and whole menu
+        if (countdownText != null)
+        {
+            countdownText.gameObject.SetActive(false);
+        }
+        if (startPanelRoot != null)
+        {
+            startPanelRoot.SetActive(false);
+        }
 
         // Show workout HUD
-        workoutHudPanel.SetActive(true);
+        if (workoutHudPanel != null)
+        {
+            workoutHudPanel.SetActive(true);
+        }
         OnWorkoutStarted?.Invoke();
     }
 
