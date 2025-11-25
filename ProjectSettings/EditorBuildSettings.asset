@@ -6,8 +6,8 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Samples/PolySpatial/Scenes/InputDataVisualization.unity
-    guid: 75f1bad34defd4c1cb72f9582141573c
+    path: Assets/Scenes/Exercise2.unity
+    guid: 3dfc1d3e0ce2949ce92493f5ebb61709
   m_configObjects:
     UnityEditor.XR.VisionOS.VisionOSSettings: {fileID: 11400000, guid: 25e1f68848051c946b9048e8426e646c, type: 2}
     com.unity.input.settings: {fileID: 11400000, guid: bb65518a4a80049acbc5e85e70dbbee0, type: 2}

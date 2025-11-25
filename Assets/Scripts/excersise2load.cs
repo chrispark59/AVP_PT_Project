@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using TMPro;
@@ -5,12 +6,15 @@ using TMPro;
 public class excersise2load : MonoBehaviour
 {
     [Header("UI References")]
-    [SerializeField] private GameObject startPanelRoot;     // the whole floating panel with start button + countdown
-    [SerializeField] private TMP_Text countdownText; // text object used to display the countdown
+    [SerializeField] private GameObject startPanelRoot;
+    [SerializeField] private GameObject startContentRoot;  // Assign: StartContentRoot
+    [SerializeField] private TMP_Text countdownText; 
     [SerializeField] private GameObject workoutHudPanel;    // your rounds / points UI
 
     [Header("Countdown Settings")]
     [SerializeField] private int countdownSeconds = 5;
+
+    public event Action OnWorkoutStarted;   // <-- scene manager / spawner can subscribe to this
 
     private bool _isRunning;
 
@@ -24,15 +28,10 @@ public class excersise2load : MonoBehaviour
 
     private IEnumerator CountdownRoutine()
     {
-        int t = countdownSeconds;
-
-        // Disable all child objects except the countdown text so only the countdown shows
-        foreach (Transform child in startPanelRoot.transform)
-            if (child.gameObject != countdownText.gameObject)
-                child.gameObject.SetActive(false);
-
-        // Show countdown text
+        startContentRoot.SetActive(false);  // hide start screen
         countdownText.gameObject.SetActive(true);
+
+        int t = countdownSeconds;
 
         while (t > 0)
         {
@@ -41,16 +40,15 @@ public class excersise2load : MonoBehaviour
             t--;
         }
 
-        // Optional "Go!" flash
         countdownText.text = "GO!";
         yield return new WaitForSeconds(0.5f);
 
-        // Hide entire start panel
+        // Hide whole menu
         startPanelRoot.SetActive(false);
 
         // Show workout HUD
-        if (workoutHudPanel != null)
-            workoutHudPanel.SetActive(true);
-
+        workoutHudPanel.SetActive(true);
+        OnWorkoutStarted?.Invoke();
     }
+
 }
