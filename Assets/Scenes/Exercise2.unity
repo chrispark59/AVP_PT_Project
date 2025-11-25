@@ -2744,8 +2744,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b0377d11a5eff423bb2f5c4394a2fa7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  exerciseLoader: {fileID: 0}
-  objectSpawner: {fileID: 0}
+  exerciseLoader: {fileID: 31284526}
+  objectSpawner: {fileID: 1828748499}
 --- !u!1 &1330035430
 GameObject:
   m_ObjectHideFlags: 0
@@ -3440,7 +3440,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 48d54d62902384770b52cbc3debbdbba, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  prefab: {fileID: 0}
+  prefab: {fileID: 9196282275647409456, guid: 8489d1cfb5f5e4adc9da5231e1be0a75, type: 3}
   spawnPoints: []
   spawnInterval: 2
 --- !u!1 &1950484711
