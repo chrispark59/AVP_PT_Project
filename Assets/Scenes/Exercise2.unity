@@ -210,9 +210,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 9184914e7058e408db2f8b8c35bf442c, type: 3}
       insertIndex: -1
       addedObject: {fileID: 31284520}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 9184914e7058e408db2f8b8c35bf442c, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 31284526}
   m_SourcePrefab: {fileID: 100100000, guid: 9184914e7058e408db2f8b8c35bf442c, type: 3}
 --- !u!4 &31284518 stripped
 Transform:
@@ -393,7 +390,7 @@ MonoBehaviour:
   m_PressEnd:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 31284526}
+      - m_Target: {fileID: 1218645878}
         m_TargetAssemblyTypeName: excersise2load, Assembly-CSharp
         m_MethodName: StartWorkoutSequence
         m_Mode: 1
@@ -407,23 +404,6 @@ MonoBehaviour:
         m_CallState: 2
   m_ButtonText: 
   m_ButtonIndex: 0
---- !u!114 &31284526
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 31284519}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b4bd820cb2bb744c2b5bf84e4836b66e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  startPanelRoot: {fileID: 89029120}
-  startContentRoot: {fileID: 646282305}
-  countdownText: {fileID: 715355800}
-  workoutHudPanel: {fileID: 236316057}
-  countdownSeconds: 5
 --- !u!1 &89029120
 GameObject:
   m_ObjectHideFlags: 0
@@ -2878,6 +2858,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1218645876}
   - component: {fileID: 1218645877}
+  - component: {fileID: 1218645878}
   m_Layer: 0
   m_Name: WorkoutManager
   m_TagString: Untagged
@@ -2912,8 +2893,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b0377d11a5eff423bb2f5c4394a2fa7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  exerciseLoader: {fileID: 31284526}
+  exerciseLoader: {fileID: 0}
   objectSpawner: {fileID: 1828748499}
+--- !u!114 &1218645878
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1218645875}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4bd820cb2bb744c2b5bf84e4836b66e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  startPanelRoot: {fileID: 89029120}
+  startContentRoot: {fileID: 646282305}
+  countdownText: {fileID: 715355800}
+  workoutHudPanel: {fileID: 236316057}
+  countdownSeconds: 5
 --- !u!1 &1330035430
 GameObject:
   m_ObjectHideFlags: 0
