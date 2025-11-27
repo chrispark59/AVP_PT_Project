@@ -43,37 +43,111 @@ public class excersise2load : MonoBehaviour
 
     private IEnumerator CountdownRoutine()
     {
-        // Show countdown text first (before hiding parent)
-        if (countdownText != null)
+        // Check if startPanelRoot and startContentRoot are the same (would cause issues)
+        bool areSameObject = (startPanelRoot != null && startContentRoot != null && startPanelRoot == startContentRoot);
+
+        // First, ensure countdown text is moved to panel root if it's a child of startContentRoot
+        // This must happen BEFORE hiding startContentRoot
+        if (countdownText != null && startPanelRoot != null)
         {
-            countdownText.gameObject.SetActive(true);
-            // Ensure it's visible even if parent is hidden by moving it to panel root temporarily
-            if (countdownText.transform.parent != startPanelRoot.transform)
+            // Check if countdown text is a child of startContentRoot
+            bool isChildOfContentRoot = false;
+            if (startContentRoot != null && !areSameObject)
+            {
+                Transform currentParent = countdownText.transform.parent;
+                while (currentParent != null)
+                {
+                    if (currentParent == startContentRoot.transform)
+                    {
+                        isChildOfContentRoot = true;
+                        break;
+                    }
+                    currentParent = currentParent.parent;
+                }
+            }
+
+            // If countdown text is a child of startContentRoot, move it to panel root
+            if (isChildOfContentRoot)
             {
                 countdownText.transform.SetParent(startPanelRoot.transform, true);
             }
+            
+            // Ensure countdown text is active and visible
+            countdownText.gameObject.SetActive(true);
         }
 
-        // Hide start content (button) but keep countdown visible
-        if (startContentRoot != null)
+        // Wait one frame to ensure parent change and activation have taken effect
+        yield return null;
+
+        // Ensure startPanelRoot is active (needed for countdown text to be visible)
+        if (startPanelRoot != null && !startPanelRoot.activeSelf)
+        {
+            startPanelRoot.SetActive(true);
+        }
+
+        // If they're the same object, we can't hide it yet - just hide the button content
+        // Otherwise, hide start content (button) - countdown should still be visible
+        if (startContentRoot != null && !areSameObject)
         {
             startContentRoot.SetActive(false);
         }
 
-        int t = countdownSeconds;
-
-        while (t > 0)
+        // Ensure we're still active (coroutine won't run if GameObject is inactive)
+        if (!gameObject.activeInHierarchy)
         {
-            if (countdownText != null)
-            {
-                countdownText.text = t.ToString();
-            }
-            yield return new WaitForSeconds(1f);
-            t--;
+            Debug.LogError("excersise2load GameObject is inactive! Coroutine will not run.");
+            yield break;
         }
 
+        int t = countdownSeconds;
+
+        // Show initial countdown number immediately
         if (countdownText != null)
         {
+            // Force countdown text to be active
+            if (!countdownText.gameObject.activeSelf)
+            {
+                countdownText.gameObject.SetActive(true);
+            }
+            // Ensure parent is still active
+            if (countdownText.transform.parent != null && !countdownText.transform.parent.gameObject.activeSelf)
+            {
+                countdownText.transform.parent.gameObject.SetActive(true);
+            }
+            countdownText.text = t.ToString();
+            Debug.Log($"Countdown: {t}");
+        }
+
+        // Countdown loop - wait, then decrement and show new number
+        while (t > 0)
+        {
+            yield return new WaitForSeconds(1f);
+            t--;
+            
+            if (t > 0 && countdownText != null)
+            {
+                // Force countdown text to be active
+                if (!countdownText.gameObject.activeSelf)
+                {
+                    countdownText.gameObject.SetActive(true);
+                }
+                // Ensure parent is still active
+                if (countdownText.transform.parent != null && !countdownText.transform.parent.gameObject.activeSelf)
+                {
+                    countdownText.transform.parent.gameObject.SetActive(true);
+                }
+                countdownText.text = t.ToString();
+                Debug.Log($"Countdown: {t}");
+            }
+        }
+
+        // Show "GO!" message
+        if (countdownText != null)
+        {
+            if (!countdownText.gameObject.activeSelf)
+            {
+                countdownText.gameObject.SetActive(true);
+            }
             countdownText.text = "GO!";
         }
         yield return new WaitForSeconds(0.5f);
