@@ -12,7 +12,7 @@ public class excersise2load : MonoBehaviour
     [SerializeField] private GameObject workoutHudPanel;    // your rounds / points UI
 
     [Header("Countdown Settings")]
-    [SerializeField] private int countdownSeconds = 5;
+    [SerializeField] private int countdownSeconds = 6;
 
     public event Action OnWorkoutStarted;   // <-- scene manager / spawner can subscribe to this
 
