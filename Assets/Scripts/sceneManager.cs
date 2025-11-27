@@ -18,9 +18,6 @@ public class Exercise2SceneManager : MonoBehaviour
 
     private void HandleWorkoutStarted()
     {
-        // This is called right after the countdown finishes and HUD shows
-        Debug.Log("Workout started – SceneManager kicking off stuff");
-
         // e.g. start spawning targets
         if (objectSpawner != null)
             objectSpawner.BeginSpawning();
