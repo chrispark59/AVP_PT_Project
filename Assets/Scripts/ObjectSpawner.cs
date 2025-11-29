@@ -14,7 +14,11 @@ public class ObjectSpawner : MonoBehaviour
     [SerializeField] private GameObject prefab;
     [SerializeField] private Transform[] spawnPoints;
     [SerializeField] private float spawnIntervalSeconds = 0.75f;
-    [SerializeField] private float delayBetweenRoundsSeconds = 2f;
+    [SerializeField] private float delayBetweenRoundsSeconds = 5f;
+    
+    [Header("Orb Array Positioning")]
+    [Tooltip("Optional: Reference to OrbPositionManager to position the array when workout starts")]
+    [SerializeField] private OrbPositionManager orbPositionManager;
 
     [Tooltip("How many objects each round should spawn (Round 1, Round 2, ...).")]
     [SerializeField] private int[] objectsPerRound = { 5, 8, 11 };
@@ -27,12 +31,15 @@ public class ObjectSpawner : MonoBehaviour
     private int _objectsSpawnedThisRound;
     private int _points;
     private Coroutine _roundRoutine;
+    private OrbBehavior _currentTargetOrb; // Track which orb is currently the target (red)
 
-    /// <summary>Begin spawning through all configured rounds.</summary>
+    /*
+    starts spawning behavior 
+    */
     public void BeginSpawning()
     {
         if (_roundRoutine != null)
-            return; // already running
+            return; 
 
         if (prefab == null)
         {
@@ -46,12 +53,26 @@ public class ObjectSpawner : MonoBehaviour
             return;
         }
 
+        // Position the orb array in front of the user when workout starts
+        if (orbPositionManager != null)
+        {
+            orbPositionManager.RepositionArray();
+        }
+
+        // Clear any existing target orb
+        if (_currentTargetOrb != null)
+        {
+            _currentTargetOrb.SetTarget(false);
+            _currentTargetOrb.WasPressed -= OnOrbPressed;
+            _currentTargetOrb = null;
+        }
+
         _points = 0;
         UpdatePointsLabel();
         _roundRoutine = StartCoroutine(RunRounds());
     }
 
-    /// <summary>Stops any ongoing spawning activity.</summary>
+    //stops spawning behavior 
     public void StopSpawning()
     {
         if (_roundRoutine == null)
@@ -59,8 +80,17 @@ public class ObjectSpawner : MonoBehaviour
 
         StopCoroutine(_roundRoutine);
         _roundRoutine = null;
+        
+        // Clear the current target orb
+        if (_currentTargetOrb != null)
+        {
+            _currentTargetOrb.SetTarget(false);
+            _currentTargetOrb.WasPressed -= OnOrbPressed;
+            _currentTargetOrb = null;
+        }
     }
 
+    //runs rounds based off of objectsPerRound array
     private IEnumerator RunRounds()
     {
         for (int i = 0; i < objectsPerRound.Length; i++)
@@ -76,6 +106,9 @@ public class ObjectSpawner : MonoBehaviour
                 _objectsSpawnedThisRound++;
                 _points++;
                 UpdatePointsLabel();
+                /*
+                need additional function to check if user has interacted with spawned object before spawning an additional object
+                */
                 yield return new WaitForSeconds(spawnIntervalSeconds);
             }
 
@@ -86,19 +119,56 @@ public class ObjectSpawner : MonoBehaviour
         _currentRoundIndex = -1;
     }
 
+    //spawns a single object
     private void SpawnSingleObject()
     {
         if (prefab == null)
             return;
 
         var spawnPose = ResolveSpawnPose();
-        Instantiate(prefab, spawnPose.position, spawnPose.rotation);
+        GameObject spawnedObj = Instantiate(prefab, spawnPose.position, spawnPose.rotation);
+        
+        // Get the OrbBehavior component from the spawned object
+        OrbBehavior orbBehavior = spawnedObj.GetComponent<OrbBehavior>();
+        if (orbBehavior != null)
+        {
+            // Turn off the previous target orb if one exists
+            if (_currentTargetOrb != null)
+            {
+                _currentTargetOrb.SetTarget(false);
+            }
+            
+            // Set this new orb as the target (red)
+            orbBehavior.SetTarget(true);
+            _currentTargetOrb = orbBehavior;
+            
+            // Subscribe to the orb's WasPressed event to handle when it's selected
+            orbBehavior.WasPressed += OnOrbPressed;
+        }
+    }
+    
+    // Called when an orb is pressed/selected
+    private void OnOrbPressed(OrbBehavior pressedOrb)
+    {
+        // Turn off the pressed orb
+        if (pressedOrb != null)
+        {
+            pressedOrb.SetTarget(false);
+            
+            // If this was the current target, clear the reference
+            if (_currentTargetOrb == pressedOrb)
+            {
+                _currentTargetOrb = null;
+            }
+            
+            // Unsubscribe from the event
+            pressedOrb.WasPressed -= OnOrbPressed;
+        }
     }
 
-    /// <summary>
-    /// Determines where the next object should spawn.
-    /// Override or edit this if you want custom placement logic.
-    /// </summary>
+    /*
+    spawn location should be designed based off a grid system positioned within arm distance of the user 
+    */
     protected virtual Pose ResolveSpawnPose()
     {
         if (spawnPoints != null && spawnPoints.Length > 0)
@@ -110,6 +180,7 @@ public class ObjectSpawner : MonoBehaviour
         return new Pose(transform.position, transform.rotation);
     }
 
+    //basic updating round label UI logic 
     private void UpdateRoundLabel()
     {
         if (roundsLabel == null)
@@ -119,6 +190,7 @@ public class ObjectSpawner : MonoBehaviour
         roundsLabel.text = $"Round {roundNumber}/{objectsPerRound.Length}";
     }
 
+    //basic updating points label UI logic 
     private void UpdatePointsLabel()
     {
         if (pointsLabel == null)
@@ -127,6 +199,7 @@ public class ObjectSpawner : MonoBehaviour
         pointsLabel.text = _points.ToString();
     }
 
+    //stops spawning objects
     private void OnDisable()
     {
         StopSpawning();
