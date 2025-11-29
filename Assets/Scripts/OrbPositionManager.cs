@@ -1,9 +1,8 @@
 using UnityEngine;
 
-/// <summary>
-/// Positions the orb PositionArray in front of the user at arm's reach distance.
-/// Should be attached to the PositionArray GameObject or a parent that contains it.
-/// </summary>
+/*
+script in charge of positioning the orb array  in front of the user at arm's reach distance 
+*/
 public class OrbPositionManager : MonoBehaviour
 {
     [Header("References")]
@@ -11,8 +10,8 @@ public class OrbPositionManager : MonoBehaviour
     [SerializeField] private Transform cameraTransform; // Main camera (head) transform
     
     [Header("Positioning Settings")]
-    [Tooltip("Distance in front of user to place the orb array (arm's reach distance in meters)")]
-    [SerializeField] private float reachDistance = 3f;
+    [Tooltip("Distance in front of user to place the orb array (arm's reach distance in meters). Typical arm's reach is 0.5-0.7m")]
+    [SerializeField] private float reachDistance = 0.6f;
     
     [Tooltip("Height offset from camera (negative = below eye level)")]
     [SerializeField] private float heightOffset = -0.2f;
@@ -71,6 +70,19 @@ public class OrbPositionManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Called when values change in the inspector (including during play mode).
+    /// This allows real-time updates when adjusting reachDistance.
+    /// </summary>
+    private void OnValidate()
+    {
+        // Only update if we're in play mode and references are set
+        if (Application.isPlaying && cameraTransform != null && positionArray != null)
+        {
+            PositionArray();
+        }
+    }
+
+    /// <summary>
     /// Positions the array in front of the user at arm's reach distance.
     /// </summary>
     public void PositionArray()
@@ -107,7 +119,17 @@ public class OrbPositionManager : MonoBehaviour
         // Adjust height relative to camera (not absolute world Y)
         targetPosition.y = cameraPos.y + heightOffset;
         
-        // Set the position
+        // Check if PositionArray has a parent with scale that might affect positioning
+        if (positionArray.parent != null)
+        {
+            Vector3 parentScale = positionArray.parent.lossyScale;
+            if (Mathf.Abs(parentScale.x - 1f) > 0.01f || Mathf.Abs(parentScale.y - 1f) > 0.01f || Mathf.Abs(parentScale.z - 1f) > 0.01f)
+            {
+                Debug.LogWarning($"OrbPositionManager: PositionArray has a parent with non-uniform scale {parentScale}. This may affect positioning!");
+            }
+        }
+        
+        // Set the position in world space
         positionArray.position = targetPosition;
         
         // Make array face the user
@@ -126,7 +148,20 @@ public class OrbPositionManager : MonoBehaviour
             }
         }
         
-        Debug.Log($"OrbPositionManager: Positioned array at {targetPosition} (Camera: {cameraPos}, Forward: {forward}, Distance: {reachDistance})");
+        // Calculate actual distance for debugging
+        float actualDistance = Vector3.Distance(cameraPos, positionArray.position);
+        float horizontalDistance = Vector3.Distance(
+            new Vector3(cameraPos.x, 0, cameraPos.z), 
+            new Vector3(positionArray.position.x, 0, positionArray.position.z)
+        );
+        
+        Debug.Log($"OrbPositionManager: Positioned array | reachDistance setting: {reachDistance}m | Actual 3D distance: {actualDistance:F3}m | Horizontal distance: {horizontalDistance:F3}m");
+        
+        // Warn if actual distance is very different from reachDistance
+        if (Mathf.Abs(actualDistance - reachDistance) > 0.1f)
+        {
+            Debug.LogWarning($"OrbPositionManager: Actual distance ({actualDistance:F3}m) differs significantly from reachDistance setting ({reachDistance}m). Check for parent transforms or scale issues.");
+        }
     }
 
     /// <summary>

@@ -45,7 +45,8 @@ public class ObjectSpawner : MonoBehaviour
     }
 
     /// <summary>
-    /// Collects all OrbBehavior components from the PositionArray's children.
+    /// Collects all OrbBehavior components from the PositionArray's children recursively.
+    /// Handles 2D array structure (rows containing orbs).
     /// </summary>
     private void CollectOrbsFromArray()
     {
@@ -57,22 +58,33 @@ public class ObjectSpawner : MonoBehaviour
             return;
         }
 
-        // Get all child GameObjects and find their OrbBehavior components
-        for (int i = 0; i < positionArray.childCount; i++)
+        // Recursively search through all children to find orbs
+        CollectOrbsRecursive(positionArray);
+
+        Debug.Log($"ObjectSpawner: Found {_availableOrbs.Count} orbs in PositionArray (searched recursively)");
+    }
+
+    /// <summary>
+    /// Recursively searches through a Transform and its children to find OrbBehavior components.
+    /// </summary>
+    private void CollectOrbsRecursive(Transform parent)
+    {
+        // Check if this GameObject itself has an OrbBehavior
+        OrbBehavior orbBehavior = parent.GetComponent<OrbBehavior>();
+        if (orbBehavior != null)
         {
-            Transform child = positionArray.GetChild(i);
-            OrbBehavior orbBehavior = child.GetComponent<OrbBehavior>();
-            
-            if (orbBehavior != null)
-            {
-                _availableOrbs.Add(orbBehavior);
-                // Initially disable/hide all orbs
-                orbBehavior.gameObject.SetActive(false);
-                orbBehavior.SetTarget(false);
-            }
+            _availableOrbs.Add(orbBehavior);
+            // Initially disable/hide all orbs
+            orbBehavior.gameObject.SetActive(false);
+            orbBehavior.SetTarget(false);
         }
 
-        Debug.Log($"ObjectSpawner: Found {_availableOrbs.Count} orbs in PositionArray");
+        // Recursively check all children
+        for (int i = 0; i < parent.childCount; i++)
+        {
+            Transform child = parent.GetChild(i);
+            CollectOrbsRecursive(child);
+        }
     }
 
     /// <summary>
@@ -80,8 +92,13 @@ public class ObjectSpawner : MonoBehaviour
     /// </summary>
     public void BeginSpawning()
     {
+        Debug.Log("ObjectSpawner: BeginSpawning() called");
+        
         if (_roundRoutine != null)
+        {
+            Debug.LogWarning("ObjectSpawner: Round routine already running!");
             return; 
+        }
 
         if (positionArray == null)
         {
@@ -89,9 +106,16 @@ public class ObjectSpawner : MonoBehaviour
             return;
         }
 
+        // Re-collect orbs in case they weren't found in Awake (e.g., if PositionArray was assigned later)
         if (_availableOrbs.Count == 0)
         {
-            Debug.LogError("ObjectSpawner: No orbs found in PositionArray! Make sure orbs have OrbBehavior component.", this);
+            Debug.LogWarning("ObjectSpawner: No orbs found, attempting to re-collect...");
+            CollectOrbsFromArray();
+        }
+
+        if (_availableOrbs.Count == 0)
+        {
+            Debug.LogError($"ObjectSpawner: No orbs found in PositionArray! PositionArray has {positionArray.childCount} children. Make sure orbs have OrbBehavior component.", this);
             return;
         }
 
@@ -100,6 +124,8 @@ public class ObjectSpawner : MonoBehaviour
             Debug.LogError("ObjectSpawner needs at least one round configured.", this);
             return;
         }
+
+        Debug.Log($"ObjectSpawner: Starting game with {_availableOrbs.Count} orbs, {objectsPerRound.Length} rounds");
 
         // Position the orb array in front of the user when workout starts
         if (orbPositionManager != null)
@@ -121,6 +147,8 @@ public class ObjectSpawner : MonoBehaviour
         _points = 0;
         _nextOrbIndex = 0;
         UpdatePointsLabel();
+        
+        Debug.Log("ObjectSpawner: Starting RunRounds coroutine");
         _roundRoutine = StartCoroutine(RunRounds());
     }
 
@@ -161,10 +189,14 @@ public class ObjectSpawner : MonoBehaviour
     //runs rounds based off of objectsPerRound array
     private IEnumerator RunRounds()
     {
+        Debug.Log("ObjectSpawner: RunRounds coroutine started");
+        
         for (int i = 0; i < objectsPerRound.Length; i++)
         {
             _currentRoundIndex = i;
             _orbsActivatedThisRound = 0;
+            
+            Debug.Log($"ObjectSpawner: Starting Round {i + 1}, will activate {objectsPerRound[i]} orbs");
             UpdateRoundLabel();
 
             int orbsToActivate = Mathf.Max(0, objectsPerRound[i]);
@@ -209,7 +241,7 @@ public class ObjectSpawner : MonoBehaviour
     {
         if (_availableOrbs.Count == 0 || _nextOrbIndex >= _availableOrbs.Count)
         {
-            Debug.LogWarning("No more orbs available to activate!");
+            Debug.LogWarning($"No more orbs available to activate! Count: {_availableOrbs.Count}, Index: {_nextOrbIndex}");
             return;
         }
 
@@ -225,12 +257,16 @@ public class ObjectSpawner : MonoBehaviour
         
         if (nextOrb != null)
         {
+            Debug.Log($"ObjectSpawner: Activating orb {_nextOrbIndex + 1}/{_availableOrbs.Count}: {nextOrb.gameObject.name}");
+            
             // Activate the orb GameObject
             nextOrb.gameObject.SetActive(true);
             
             // Set it as the target (red)
             nextOrb.SetTarget(true);
             _currentTargetOrb = nextOrb;
+            
+            Debug.Log($"ObjectSpawner: Orb activated and set as target. IsTarget: {nextOrb.IsTarget}");
             
             // Subscribe to the orb's WasPressed event
             nextOrb.WasPressed += OnOrbPressed;
@@ -242,6 +278,10 @@ public class ObjectSpawner : MonoBehaviour
                 _nextOrbIndex = 0; // Cycle back to start
             }
         }
+        else
+        {
+            Debug.LogError($"ObjectSpawner: Orb at index {_nextOrbIndex} is null!");
+        }
     }
     
     /// <summary>
@@ -249,9 +289,13 @@ public class ObjectSpawner : MonoBehaviour
     /// </summary>
     private void OnOrbPressed(OrbBehavior pressedOrb)
     {
+        Debug.Log($"ObjectSpawner: OnOrbPressed called for {pressedOrb?.gameObject.name}, Current target: {_currentTargetOrb?.gameObject.name}");
+        
         if (pressedOrb != null && pressedOrb == _currentTargetOrb)
         {
-            // Turn off the pressed orb
+            Debug.Log($"ObjectSpawner: Valid target pressed! Awarding point.");
+            
+            // Turn off the pressed orb (already done in Press(), but ensure it's off)
             pressedOrb.SetTarget(false);
             
             // Award a point for successfully hitting the target
@@ -263,6 +307,12 @@ public class ObjectSpawner : MonoBehaviour
             
             // Unsubscribe from the event
             pressedOrb.WasPressed -= OnOrbPressed;
+            
+            Debug.Log($"ObjectSpawner: Point awarded. Total points: {_points}");
+        }
+        else
+        {
+            Debug.LogWarning($"ObjectSpawner: Pressed orb doesn't match current target! Pressed: {pressedOrb?.gameObject.name}, Current: {_currentTargetOrb?.gameObject.name}");
         }
     }
 
@@ -270,19 +320,27 @@ public class ObjectSpawner : MonoBehaviour
     private void UpdateRoundLabel()
     {
         if (roundsLabel == null)
+        {
+            Debug.LogWarning("ObjectSpawner: roundsLabel is not assigned!");
             return;
+        }
 
         int roundNumber = _currentRoundIndex + 1;
         roundsLabel.text = $"Round {roundNumber}/{objectsPerRound.Length}";
+        Debug.Log($"ObjectSpawner: Updated round label to: {roundsLabel.text}");
     }
 
     //basic updating points label UI logic 
     private void UpdatePointsLabel()
     {
         if (pointsLabel == null)
+        {
+            Debug.LogWarning("ObjectSpawner: pointsLabel is not assigned!");
             return;
+        }
 
         pointsLabel.text = _points.ToString();
+        Debug.Log($"ObjectSpawner: Updated points label to: {pointsLabel.text}");
     }
 
     //stops spawning objects

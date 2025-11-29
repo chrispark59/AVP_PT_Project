@@ -39,16 +39,23 @@ public class OrbBehavior : MonoBehaviour
 
     public void Press()
     {
+        Debug.Log($"OrbBehavior.Press() called on {name}, _isTarget = {_isTarget}");
+        
         // Only react if it was actually the "active" (red) orb
-        if (!_isTarget) return;
+        if (!_isTarget)
+        {
+            Debug.Log($"OrbBehavior: {name} is not the target, ignoring press");
+            return;
+        }
         
         // Turn off this orb when pressed
         SetTarget(false);
         
         // TODO: play animation, particles, sound, etc.
-        Debug.Log($"Orb pressed: {name}, IsTarget = {_isTarget}");
+        Debug.Log($"Orb pressed: {name}, WasPressed event has {WasPressed?.GetInvocationList().Length ?? 0} subscribers");
 
         WasPressed?.Invoke(this);
+        Debug.Log($"OrbBehavior: WasPressed event invoked for {name}");
     }
 
     private void ApplyColor(Color color)
