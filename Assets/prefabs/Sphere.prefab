@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 8758357686562644268}
   - component: {fileID: 8142195883975380348}
   - component: {fileID: -5685392095321181541}
+  - component: {fileID: 1878137989402061813}
   m_Layer: 9
   m_Name: Sphere
   m_TagString: Untagged
@@ -124,3 +125,25 @@ MonoBehaviour:
   orbRenderer: {fileID: 0}
   idleColor: {r: 1, g: 1, b: 1, a: 1}
   targetColor: {r: 1, g: 0, b: 0, a: 1}
+--- !u!114 &1878137989402061813
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2034518576520374546}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2858749a594524882a17a6cf6bec0095, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_AudioSource: {fileID: 0}
+  m_ScaleBackground: 0
+  m_SelectedColor: {r: 0.1254, g: 0.5882, b: 0.9529, a: 1}
+  m_UnselectedColor: {r: 0.1764, g: 0.1764, b: 0.1764, a: 1}
+  m_PressStart:
+    m_PersistentCalls:
+      m_Calls: []
+  m_PressEnd:
+    m_PersistentCalls:
+      m_Calls: []

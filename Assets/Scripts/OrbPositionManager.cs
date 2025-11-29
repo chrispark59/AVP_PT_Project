@@ -28,18 +28,37 @@ public class OrbPositionManager : MonoBehaviour
         // Auto-find camera if not assigned
         if (cameraTransform == null)
         {
+            // Try Camera.main first
             if (Camera.main != null)
+            {
                 cameraTransform = Camera.main.transform;
+                Debug.Log($"OrbPositionManager: Auto-found camera: {cameraTransform.name}");
+            }
             else
-                Debug.LogWarning("OrbPositionManager: No camera assigned and no Camera.main found!", this);
+            {
+                // Try to find any camera in the scene
+                Camera foundCamera = FindFirstObjectByType<Camera>();
+                if (foundCamera != null)
+                {
+                    cameraTransform = foundCamera.transform;
+                    Debug.Log($"OrbPositionManager: Found camera: {cameraTransform.name}");
+                }
+                else
+                {
+                    Debug.LogError("OrbPositionManager: No camera found! Please assign cameraTransform in inspector.", this);
+                    return;
+                }
+            }
         }
         
         // Auto-find PositionArray if not assigned
         if (positionArray == null)
         {
             positionArray = transform;
+            Debug.Log($"OrbPositionManager: Using self as PositionArray: {positionArray.name}");
         }
         
+        // Position the array
         PositionArray();
     }
 
@@ -57,17 +76,38 @@ public class OrbPositionManager : MonoBehaviour
     public void PositionArray()
     {
         if (cameraTransform == null || positionArray == null)
+        {
+            Debug.LogWarning($"OrbPositionManager: Missing references! Camera: {cameraTransform != null}, Array: {positionArray != null}", this);
             return;
+        }
 
-        // Calculate position in front of camera at reach distance
+        // Get camera position and forward direction in world space
+        Vector3 cameraPos = cameraTransform.position;
         Vector3 forward = cameraTransform.forward;
-        forward.y = 0f; // Keep it horizontal
+        
+        // Flatten forward to horizontal plane (keep Y at 0 relative to camera)
+        forward.y = 0f;
+        
+        // If forward is too small (looking straight up/down), use a default forward
+        if (forward.sqrMagnitude < 0.01f)
+        {
+            forward = cameraTransform.forward;
+            forward.y = 0f;
+            if (forward.sqrMagnitude < 0.01f)
+            {
+                forward = Vector3.forward; // Fallback
+            }
+        }
+        
         forward.Normalize();
         
-        Vector3 cameraPos = cameraTransform.position;
+        // Calculate target position in front of camera
         Vector3 targetPosition = cameraPos + forward * reachDistance;
-        targetPosition.y += heightOffset; // Adjust height
         
+        // Adjust height relative to camera (not absolute world Y)
+        targetPosition.y = cameraPos.y + heightOffset;
+        
+        // Set the position
         positionArray.position = targetPosition;
         
         // Make array face the user
@@ -79,7 +119,14 @@ public class OrbPositionManager : MonoBehaviour
             {
                 positionArray.rotation = Quaternion.LookRotation(directionToUser);
             }
+            else
+            {
+                // Fallback: face opposite of forward direction
+                positionArray.rotation = Quaternion.LookRotation(-forward);
+            }
         }
+        
+        Debug.Log($"OrbPositionManager: Positioned array at {targetPosition} (Camera: {cameraPos}, Forward: {forward}, Distance: {reachDistance})");
     }
 
     /// <summary>

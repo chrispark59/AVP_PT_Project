@@ -1,49 +1,97 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 
 /// <summary>
-/// Handles the round-based spawning logic for Exercise 2.
-/// Object placement can be customised by overriding <see cref="ResolveSpawnPose"/>
-/// or editing that method directly – everything else (round pacing, UI updates,
-/// bookkeeping) is taken care of here.
+/// Handles the round-based orb activation logic for Exercise 2.
+/// Uses existing orbs from the PositionArray instead of spawning new objects.
 /// </summary>
 public class ObjectSpawner : MonoBehaviour
 {
-    [Header("Spawn Setup")]
-    [SerializeField] private GameObject prefab;
-    [SerializeField] private Transform[] spawnPoints;
-    [SerializeField] private float spawnIntervalSeconds = 0.75f;
-    [SerializeField] private float delayBetweenRoundsSeconds = 5f;
+    [Header("Orb Array Setup")]
+    [Tooltip("Reference to the PositionArray Transform that contains all the orb GameObjects")]
+    [SerializeField] private Transform positionArray;
     
-    [Header("Orb Array Positioning")]
-    [Tooltip("Optional: Reference to OrbPositionManager to position the array when workout starts")]
+    [Tooltip("Reference to OrbPositionManager to position the array when workout starts")]
     [SerializeField] private OrbPositionManager orbPositionManager;
-
-    [Tooltip("How many objects each round should spawn (Round 1, Round 2, ...).")]
+    
+    [Header("Round Settings")]
+    [Tooltip("How many orbs to activate each round (Round 1, Round 2, ...).")]
     [SerializeField] private int[] objectsPerRound = { 5, 8, 11 };
+    
+    [Tooltip("Delay between activating each orb (seconds)")]
+    [SerializeField] private float orbActivationIntervalSeconds = 0.75f;
+    
+    [Tooltip("Delay between rounds (seconds)")]
+    [SerializeField] private float delayBetweenRoundsSeconds = 5f;
 
     [Header("HUD References")]
     [SerializeField] private TMP_Text roundsLabel;
     [SerializeField] private TMP_Text pointsLabel;
 
     private int _currentRoundIndex = -1;
-    private int _objectsSpawnedThisRound;
+    private int _orbsActivatedThisRound;
     private int _points;
     private Coroutine _roundRoutine;
     private OrbBehavior _currentTargetOrb; // Track which orb is currently the target (red)
+    private List<OrbBehavior> _availableOrbs = new List<OrbBehavior>(); // All orbs from the array
+    private int _nextOrbIndex = 0; // Index for cycling through orbs
 
-    /*
-    starts spawning behavior 
-    */
+    private void Awake()
+    {
+        // Collect all orbs from the PositionArray
+        CollectOrbsFromArray();
+    }
+
+    /// <summary>
+    /// Collects all OrbBehavior components from the PositionArray's children.
+    /// </summary>
+    private void CollectOrbsFromArray()
+    {
+        _availableOrbs.Clear();
+        
+        if (positionArray == null)
+        {
+            Debug.LogWarning("ObjectSpawner: PositionArray is not assigned!", this);
+            return;
+        }
+
+        // Get all child GameObjects and find their OrbBehavior components
+        for (int i = 0; i < positionArray.childCount; i++)
+        {
+            Transform child = positionArray.GetChild(i);
+            OrbBehavior orbBehavior = child.GetComponent<OrbBehavior>();
+            
+            if (orbBehavior != null)
+            {
+                _availableOrbs.Add(orbBehavior);
+                // Initially disable/hide all orbs
+                orbBehavior.gameObject.SetActive(false);
+                orbBehavior.SetTarget(false);
+            }
+        }
+
+        Debug.Log($"ObjectSpawner: Found {_availableOrbs.Count} orbs in PositionArray");
+    }
+
+    /// <summary>
+    /// Starts the orb activation behavior.
+    /// </summary>
     public void BeginSpawning()
     {
         if (_roundRoutine != null)
             return; 
 
-        if (prefab == null)
+        if (positionArray == null)
         {
-            Debug.LogError("ObjectSpawner has no prefab assigned.", this);
+            Debug.LogError("ObjectSpawner: PositionArray is not assigned!", this);
+            return;
+        }
+
+        if (_availableOrbs.Count == 0)
+        {
+            Debug.LogError("ObjectSpawner: No orbs found in PositionArray! Make sure orbs have OrbBehavior component.", this);
             return;
         }
 
@@ -59,6 +107,9 @@ public class ObjectSpawner : MonoBehaviour
             orbPositionManager.RepositionArray();
         }
 
+        // Reset all orbs
+        ResetAllOrbs();
+
         // Clear any existing target orb
         if (_currentTargetOrb != null)
         {
@@ -68,8 +119,25 @@ public class ObjectSpawner : MonoBehaviour
         }
 
         _points = 0;
+        _nextOrbIndex = 0;
         UpdatePointsLabel();
         _roundRoutine = StartCoroutine(RunRounds());
+    }
+
+    /// <summary>
+    /// Resets all orbs to inactive state.
+    /// </summary>
+    private void ResetAllOrbs()
+    {
+        foreach (var orb in _availableOrbs)
+        {
+            if (orb != null)
+            {
+                orb.gameObject.SetActive(false);
+                orb.SetTarget(false);
+                orb.WasPressed -= OnOrbPressed;
+            }
+        }
     }
 
     //stops spawning behavior 
@@ -96,20 +164,35 @@ public class ObjectSpawner : MonoBehaviour
         for (int i = 0; i < objectsPerRound.Length; i++)
         {
             _currentRoundIndex = i;
-            _objectsSpawnedThisRound = 0;
+            _orbsActivatedThisRound = 0;
             UpdateRoundLabel();
 
-            int objectsToSpawn = Mathf.Max(0, objectsPerRound[i]);
-            while (_objectsSpawnedThisRound < objectsToSpawn)
+            int orbsToActivate = Mathf.Max(0, objectsPerRound[i]);
+            while (_orbsActivatedThisRound < orbsToActivate)
             {
-                SpawnSingleObject();
-                _objectsSpawnedThisRound++;
-                _points++;
-                UpdatePointsLabel();
-                /*
-                need additional function to check if user has interacted with spawned object before spawning an additional object
-                */
-                yield return new WaitForSeconds(spawnIntervalSeconds);
+                // Check if we have enough orbs available
+                if (_nextOrbIndex >= _availableOrbs.Count)
+                {
+                    Debug.LogWarning($"Not enough orbs! Need {orbsToActivate} but only have {_availableOrbs.Count}. Resetting orb index.");
+                    _nextOrbIndex = 0; // Cycle back to start if we run out
+                }
+
+                ActivateNextOrb();
+                _orbsActivatedThisRound++;
+                
+                // Wait for user to interact with the orb before activating the next one
+                yield return new WaitUntil(() => _currentTargetOrb == null || !_currentTargetOrb.IsTarget);
+                
+                // Small delay before activating next orb
+                yield return new WaitForSeconds(orbActivationIntervalSeconds);
+            }
+
+            // Clear any remaining target orb before next round
+            if (_currentTargetOrb != null)
+            {
+                _currentTargetOrb.SetTarget(false);
+                _currentTargetOrb.WasPressed -= OnOrbPressed;
+                _currentTargetOrb = null;
             }
 
             yield return new WaitForSeconds(delayBetweenRoundsSeconds);
@@ -119,65 +202,68 @@ public class ObjectSpawner : MonoBehaviour
         _currentRoundIndex = -1;
     }
 
-    //spawns a single object
-    private void SpawnSingleObject()
+    /// <summary>
+    /// Activates the next orb from the array and makes it the target (red).
+    /// </summary>
+    private void ActivateNextOrb()
     {
-        if (prefab == null)
-            return;
-
-        var spawnPose = ResolveSpawnPose();
-        GameObject spawnedObj = Instantiate(prefab, spawnPose.position, spawnPose.rotation);
-        
-        // Get the OrbBehavior component from the spawned object
-        OrbBehavior orbBehavior = spawnedObj.GetComponent<OrbBehavior>();
-        if (orbBehavior != null)
+        if (_availableOrbs.Count == 0 || _nextOrbIndex >= _availableOrbs.Count)
         {
-            // Turn off the previous target orb if one exists
-            if (_currentTargetOrb != null)
+            Debug.LogWarning("No more orbs available to activate!");
+            return;
+        }
+
+        // Turn off the previous target orb if one exists
+        if (_currentTargetOrb != null)
+        {
+            _currentTargetOrb.SetTarget(false);
+            _currentTargetOrb.WasPressed -= OnOrbPressed;
+        }
+
+        // Get the next orb
+        OrbBehavior nextOrb = _availableOrbs[_nextOrbIndex];
+        
+        if (nextOrb != null)
+        {
+            // Activate the orb GameObject
+            nextOrb.gameObject.SetActive(true);
+            
+            // Set it as the target (red)
+            nextOrb.SetTarget(true);
+            _currentTargetOrb = nextOrb;
+            
+            // Subscribe to the orb's WasPressed event
+            nextOrb.WasPressed += OnOrbPressed;
+            
+            // Move to next orb index (cycle if needed)
+            _nextOrbIndex++;
+            if (_nextOrbIndex >= _availableOrbs.Count)
             {
-                _currentTargetOrb.SetTarget(false);
+                _nextOrbIndex = 0; // Cycle back to start
             }
-            
-            // Set this new orb as the target (red)
-            orbBehavior.SetTarget(true);
-            _currentTargetOrb = orbBehavior;
-            
-            // Subscribe to the orb's WasPressed event to handle when it's selected
-            orbBehavior.WasPressed += OnOrbPressed;
         }
     }
     
-    // Called when an orb is pressed/selected
+    /// <summary>
+    /// Called when an orb is pressed/selected by the user.
+    /// </summary>
     private void OnOrbPressed(OrbBehavior pressedOrb)
     {
-        // Turn off the pressed orb
-        if (pressedOrb != null)
+        if (pressedOrb != null && pressedOrb == _currentTargetOrb)
         {
+            // Turn off the pressed orb
             pressedOrb.SetTarget(false);
             
-            // If this was the current target, clear the reference
-            if (_currentTargetOrb == pressedOrb)
-            {
-                _currentTargetOrb = null;
-            }
+            // Award a point for successfully hitting the target
+            _points++;
+            UpdatePointsLabel();
+            
+            // Clear the current target reference
+            _currentTargetOrb = null;
             
             // Unsubscribe from the event
             pressedOrb.WasPressed -= OnOrbPressed;
         }
-    }
-
-    /*
-    spawn location should be designed based off a grid system positioned within arm distance of the user 
-    */
-    protected virtual Pose ResolveSpawnPose()
-    {
-        if (spawnPoints != null && spawnPoints.Length > 0)
-        {
-            var point = spawnPoints[Random.Range(0, spawnPoints.Length)];
-            return new Pose(point.position, point.rotation);
-        }
-
-        return new Pose(transform.position, transform.rotation);
     }
 
     //basic updating round label UI logic 

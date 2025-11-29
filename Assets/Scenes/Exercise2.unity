@@ -4086,6 +4086,7 @@ GameObject:
   - component: {fileID: 1218645876}
   - component: {fileID: 1218645877}
   - component: {fileID: 1218645878}
+  - component: {fileID: 1218645879}
   m_Layer: 0
   m_Name: WorkoutManager
   m_TagString: Untagged
@@ -4139,6 +4140,24 @@ MonoBehaviour:
   countdownText: {fileID: 715355800}
   workoutHudPanel: {fileID: 236316057}
   countdownSeconds: 5
+--- !u!114 &1218645879
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1218645875}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5319bdce7cfa45e99b3285f4e6f8852, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  positionArray: {fileID: 234586803}
+  cameraTransform: {fileID: 0}
+  reachDistance: 3
+  heightOffset: -0.2
+  faceUser: 1
+  updateContinuously: 0
 --- !u!4 &1249561475 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3950632818279850100, guid: 04d2196f133ef4ac0b578e2d36ac70c9, type: 3}
@@ -5086,14 +5105,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 48d54d62902384770b52cbc3debbdbba, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  prefab: {fileID: 4497054940268380000, guid: e4a902befd5de4399bbab06d22a873f7, type: 3}
-  spawnPoints:
-  - {fileID: 409435687}
-  - {fileID: 366110134}
-  - {fileID: 990142494}
-  spawnIntervalSeconds: 0.75
-  delayBetweenRoundsSeconds: 2
+  positionArray: {fileID: 234586803}
+  orbPositionManager: {fileID: 1218645879}
   objectsPerRound: 05000000080000000b000000
+  orbActivationIntervalSeconds: 0.75
+  delayBetweenRoundsSeconds: 2
   roundsLabel: {fileID: 243608437}
   pointsLabel: {fileID: 1678607262}
 --- !u!1 &1907257897
