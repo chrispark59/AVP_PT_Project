@@ -8,6 +8,9 @@ public class OrbBehavior : MonoBehaviour
     [SerializeField] private Color idleColor = Color.white;
     [SerializeField] private Color targetColor = Color.red;
 
+    [Header("Audio")]
+    [SerializeField] private AudioSource audioSource;
+
     private MaterialPropertyBlock _propBlock;
     private bool _isTarget;
 
@@ -20,6 +23,10 @@ public class OrbBehavior : MonoBehaviour
     {
         if (orbRenderer == null)
             orbRenderer = GetComponentInChildren<Renderer>();
+
+        // Auto-find AudioSource if not assigned
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
 
         _propBlock = new MaterialPropertyBlock();
         ApplyColor(idleColor);
@@ -34,7 +41,22 @@ public class OrbBehavior : MonoBehaviour
     public void SetTarget(bool isTarget)
     {
         _isTarget = isTarget;
-        ApplyColor(_isTarget ? targetColor : idleColor);
+        
+        if (isTarget)
+        {
+            // When becoming the target, ensure it's active and red
+            if (!gameObject.activeSelf)
+            {
+                gameObject.SetActive(true);
+            }
+            ApplyColor(targetColor);
+        }
+        else
+        {
+            // When no longer the target, deactivate immediately so only red orbs are visible
+            ApplyColor(idleColor);
+            gameObject.SetActive(false);
+        }
     }
 
     public void Press()
@@ -48,10 +70,16 @@ public class OrbBehavior : MonoBehaviour
             return;
         }
         
+        // Play audio if available
+        if (audioSource != null)
+        {
+            audioSource.Play();
+        }
+        
         // Turn off this orb when pressed
         SetTarget(false);
         
-        // TODO: play animation, particles, sound, etc.
+        // TODO: play animation, particles, etc.
         Debug.Log($"Orb pressed: {name}, WasPressed event has {WasPressed?.GetInvocationList().Length ?? 0} subscribers");
 
         WasPressed?.Invoke(this);

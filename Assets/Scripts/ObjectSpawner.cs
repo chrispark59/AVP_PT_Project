@@ -30,6 +30,8 @@ public class ObjectSpawner : MonoBehaviour
     [SerializeField] private TMP_Text roundsLabel;
     [SerializeField] private TMP_Text pointsLabel;
 
+    [SerializeField] private AudioSource audioSource;
+
     private int _currentRoundIndex = -1;
     private int _orbsActivatedThisRound;
     private int _points;
@@ -210,6 +212,7 @@ public class ObjectSpawner : MonoBehaviour
                 }
 
                 ActivateNextOrb();
+                
                 _orbsActivatedThisRound++;
                 
                 // Wait for user to interact with the orb before activating the next one
@@ -223,6 +226,7 @@ public class ObjectSpawner : MonoBehaviour
             if (_currentTargetOrb != null)
             {
                 _currentTargetOrb.SetTarget(false);
+                _currentTargetOrb.gameObject.SetActive(false);
                 _currentTargetOrb.WasPressed -= OnOrbPressed;
                 _currentTargetOrb = null;
             }
@@ -237,11 +241,13 @@ public class ObjectSpawner : MonoBehaviour
     /// <summary>
     /// Activates the next orb from the array and makes it the target (red).
     /// </summary>
+    private OrbBehavior _lastTargetOrb;
+
     private void ActivateNextOrb()
     {
-        if (_availableOrbs.Count == 0 || _nextOrbIndex >= _availableOrbs.Count)
+        if (_availableOrbs.Count == 0)
         {
-            Debug.LogWarning($"No more orbs available to activate! Count: {_availableOrbs.Count}, Index: {_nextOrbIndex}");
+            Debug.LogWarning("No orbs available to activate!");
             return;
         }
 
@@ -250,39 +256,43 @@ public class ObjectSpawner : MonoBehaviour
         {
             _currentTargetOrb.SetTarget(false);
             _currentTargetOrb.WasPressed -= OnOrbPressed;
+            _currentTargetOrb.gameObject.SetActive(false);   
         }
 
-        // Get the next orb
-        OrbBehavior nextOrb = _availableOrbs[_nextOrbIndex];
-        
+        int randomOrbIndex = Random.Range(0, _availableOrbs.Count);
+
+        // Avoid immediate repetition if we have more than 1 orb
+        if (_availableOrbs.Count > 1)
+        {
+            int safety = 0;
+            while (_availableOrbs[randomOrbIndex] == _lastTargetOrb && safety < 10)
+            {
+                randomOrbIndex = Random.Range(0, _availableOrbs.Count);
+                safety++;
+            }
+        }
+
+        OrbBehavior nextOrb = _availableOrbs[randomOrbIndex];
+
         if (nextOrb != null)
         {
-            Debug.Log($"ObjectSpawner: Activating orb {_nextOrbIndex + 1}/{_availableOrbs.Count}: {nextOrb.gameObject.name}");
-            
-            // Activate the orb GameObject
+            Debug.Log($"ObjectSpawner: Activating orb index {randomOrbIndex}/{_availableOrbs.Count}: {nextOrb.gameObject.name}");
+
             nextOrb.gameObject.SetActive(true);
-            
-            // Set it as the target (red)
             nextOrb.SetTarget(true);
+
             _currentTargetOrb = nextOrb;
-            
-            Debug.Log($"ObjectSpawner: Orb activated and set as target. IsTarget: {nextOrb.IsTarget}");
-            
-            // Subscribe to the orb's WasPressed event
+            _lastTargetOrb = nextOrb;      // remember it for next pick
+
             nextOrb.WasPressed += OnOrbPressed;
-            
-            // Move to next orb index (cycle if needed)
-            _nextOrbIndex++;
-            if (_nextOrbIndex >= _availableOrbs.Count)
-            {
-                _nextOrbIndex = 0; // Cycle back to start
-            }
         }
         else
         {
-            Debug.LogError($"ObjectSpawner: Orb at index {_nextOrbIndex} is null!");
+            Debug.LogError($"ObjectSpawner: Orb at index {randomOrbIndex} is null!");
         }
     }
+
+
     
     /// <summary>
     /// Called when an orb is pressed/selected by the user.
@@ -297,6 +307,9 @@ public class ObjectSpawner : MonoBehaviour
             
             // Turn off the pressed orb (already done in Press(), but ensure it's off)
             pressedOrb.SetTarget(false);
+            
+            // Deactivate the orb GameObject so it disappears
+            pressedOrb.gameObject.SetActive(false);
             
             // Award a point for successfully hitting the target
             _points++;
@@ -327,6 +340,7 @@ public class ObjectSpawner : MonoBehaviour
 
         int roundNumber = _currentRoundIndex + 1;
         roundsLabel.text = $"Round {roundNumber}/{objectsPerRound.Length}";
+        audioSource.Play();
         Debug.Log($"ObjectSpawner: Updated round label to: {roundsLabel.text}");
     }
 
