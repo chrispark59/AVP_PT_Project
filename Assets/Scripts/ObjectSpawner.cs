@@ -193,14 +193,81 @@ public class ObjectSpawner : MonoBehaviour
 
     public void OnShoulderWorkoutStart()
     {
-        Debug.Log("Began");
+        Debug.Log("ObjectSpawner: OnShoulderWorkoutStart() called - marking shoulder as in-progress (rest/blue)");
+        
+        // Ensure UniversalDataManager exists
+        EnsureUniversalDataManager();
+        
+        if (UniversalDataManager.Instance != null)
+        {
+            UniversalDataManager.Instance.SetShoulderActive(false);
+            Debug.Log($"ObjectSpawner: SetShoulderActive(false) called. UniversalDataManager.Instance.ShoulderActive is now: {UniversalDataManager.Instance.ShoulderActive}");
+        }
+        else
+        {
+            Debug.LogError("ObjectSpawner: UniversalDataManager.Instance is still null after EnsureUniversalDataManager()! Cannot set shoulder active state.");
+        }
     }
 
     // Called when shoulder workout is done / user leaves it
     public void OnShoulderWorkoutComplete()
     {
+        Debug.Log("ObjectSpawner: OnShoulderWorkoutComplete() called - marking shoulder as completed (active/red)");
+        
+        // Ensure UniversalDataManager exists
+        EnsureUniversalDataManager();
+        
         if (UniversalDataManager.Instance != null)
+        {
             UniversalDataManager.Instance.SetShoulderActive(true);
+            Debug.Log($"ObjectSpawner: SetShoulderActive(true) called. UniversalDataManager.Instance.ShoulderActive is now: {UniversalDataManager.Instance.ShoulderActive}");
+        }
+        else
+        {
+            Debug.LogError("ObjectSpawner: UniversalDataManager.Instance is still null after EnsureUniversalDataManager()! Cannot set shoulder active state.");
+        }
+    }
+    
+    /// <summary>
+    /// Ensures UniversalDataManager exists. Finds existing instance or creates a new one.
+    /// </summary>
+    private void EnsureUniversalDataManager()
+    {
+        if (UniversalDataManager.Instance != null)
+        {
+            Debug.Log("ObjectSpawner: UniversalDataManager.Instance already exists.");
+            return;
+        }
+        
+        // Try to find existing instance in scene
+        UniversalDataManager existing = FindFirstObjectByType<UniversalDataManager>();
+        if (existing != null)
+        {
+            Debug.Log("ObjectSpawner: Found existing UniversalDataManager in scene. Instance should be set by Awake().");
+            // If Instance is still null, it means Awake() hasn't run yet, but it should run soon
+            // For now, we'll just log and hope it gets set
+            if (UniversalDataManager.Instance == null)
+            {
+                Debug.LogWarning("ObjectSpawner: UniversalDataManager found but Instance is null. Awake() may not have run yet.");
+            }
+            return;
+        }
+        
+        // Create a new one if none exists
+        Debug.LogWarning("ObjectSpawner: UniversalDataManager not found in scene. Creating new instance.");
+        GameObject managerObj = new GameObject("UniversalDataManager");
+        UniversalDataManager newManager = managerObj.AddComponent<UniversalDataManager>();
+        // Awake() will be called immediately when component is added, setting Instance
+        
+        // Double-check that Instance is now set
+        if (UniversalDataManager.Instance == null)
+        {
+            Debug.LogError("ObjectSpawner: Created UniversalDataManager but Instance is still null! This should not happen.");
+        }
+        else
+        {
+            Debug.Log("ObjectSpawner: Successfully created UniversalDataManager. Instance is now set.");
+        }
     }
 
     //runs rounds based off of objectsPerRound array

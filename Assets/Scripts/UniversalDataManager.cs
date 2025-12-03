@@ -24,9 +24,16 @@ public class UniversalDataManager : MonoBehaviour
 
     public void SetShoulderActive(bool isActive)
     {
-        if (ShoulderActive == isActive) return;
+        Debug.Log($"UniversalDataManager: SetShoulderActive called with {isActive}. Current state: {ShoulderActive}");
+        
+        if (ShoulderActive == isActive) 
+        {
+            Debug.Log($"UniversalDataManager: State unchanged, skipping update.");
+            return;
+        }
 
         ShoulderActive = isActive;
+        Debug.Log($"UniversalDataManager: ShoulderActive set to {ShoulderActive}. Invoking event with {ShoulderActiveChanged?.GetInvocationList().Length ?? 0} subscribers.");
         ShoulderActiveChanged?.Invoke(isActive);
     }
 }
