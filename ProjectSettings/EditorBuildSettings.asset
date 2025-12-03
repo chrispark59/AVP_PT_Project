@@ -12,6 +12,9 @@ EditorBuildSettings:
     path: Assets/Scenes/Exercise1.unity
     guid: a3374cec615b84ffd8e0b6f1bc9b68ea
   - enabled: 1
+    path: Assets/Scenes/BodyAnalysis.unity
+    guid: 968bd8061ef224c6fbe7adb3f2fcf386
+  - enabled: 1
     path: Assets/Scenes/Exercise2.unity
     guid: 3dfc1d3e0ce2949ce92493f5ebb61709
   m_configObjects:

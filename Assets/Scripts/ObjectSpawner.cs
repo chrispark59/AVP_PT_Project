@@ -151,6 +151,9 @@ public class ObjectSpawner : MonoBehaviour
         UpdatePointsLabel();
         
         Debug.Log("ObjectSpawner: Starting RunRounds coroutine");
+
+        OnShoulderWorkoutStart();
+
         _roundRoutine = StartCoroutine(RunRounds());
     }
 
@@ -186,6 +189,18 @@ public class ObjectSpawner : MonoBehaviour
             _currentTargetOrb.WasPressed -= OnOrbPressed;
             _currentTargetOrb = null;
         }
+    }
+
+    public void OnShoulderWorkoutStart()
+    {
+        Debug.Log("Began");
+    }
+
+    // Called when shoulder workout is done / user leaves it
+    public void OnShoulderWorkoutComplete()
+    {
+        if (UniversalDataManager.Instance != null)
+            UniversalDataManager.Instance.SetShoulderActive(true);
     }
 
     //runs rounds based off of objectsPerRound array
@@ -236,6 +251,8 @@ public class ObjectSpawner : MonoBehaviour
 
         _roundRoutine = null;
         _currentRoundIndex = -1;
+
+        OnShoulderWorkoutComplete(); 
     }
 
     /// <summary>
