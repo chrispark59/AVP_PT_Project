@@ -38,9 +38,21 @@ namespace PolySpatial.Samples
         [SerializeField]
         private TMP_Text QualityText;
 
+        [SerializeField]
+        private TMP_Text feedbackText;              // TextMeshPro label to show "good" or "needs work"
+
         [Tooltip("Optional: DistanceColorLerp component to update color based on distance")]
         [SerializeField]
         private DistanceColorLerp m_DistanceColorLerp;
+
+        [Header("3D Visualization")]
+        [Tooltip("Circle GameObject that shows range of motion visualization")]
+        [SerializeField]
+        private GameObject m_CircleObject;
+
+        [Tooltip("Ring GameObject that shows range of motion visualization")]
+        [SerializeField]
+        private GameObject m_RingObject;
 
         [Header("Shoulder / Arm Estimation")]
         [Tooltip("Optional: if assigned, this is used as the shoulder position. If null, we estimate from head.")]
@@ -84,6 +96,10 @@ namespace PolySpatial.Samples
         [SerializeField]
         private float m_MinAngleDelta = 0.5f;
 
+        [Tooltip("Angle required to complete one rep (in degrees)")]
+        [SerializeField]
+        private float m_AnglePerRep = 80f;
+
         [Tooltip("Enable debug logging for angle tracking")]
         [SerializeField]
         private bool m_DebugAngleTracking = false;
@@ -93,6 +109,8 @@ namespace PolySpatial.Samples
         private int m_CircleReps = 0;
         private Vector3 m_LastHandDirection = Vector3.zero;
         private bool m_IsTrackingCircle = false;
+        private const int MAX_REPS = 10;
+        private bool m_ReachedMaxReps = false;
 
         private void OnEnable()
         {
@@ -107,6 +125,20 @@ namespace PolySpatial.Samples
             // temp fallback if not assigned
             if (m_HeadTransform == null && Camera.main != null)
                 m_HeadTransform = Camera.main.transform;
+        }
+
+        private void Start()
+        {
+            // Ensure circle and ring objects start disabled (will be activated after countdown)
+            if (m_CircleObject != null)
+            {
+                m_CircleObject.SetActive(false);
+            }
+            
+            if (m_RingObject != null)
+            {
+                m_RingObject.SetActive(false);
+            }
         }
 
         private void OnDisable()
@@ -124,15 +156,15 @@ namespace PolySpatial.Samples
 
         private void Update()
         {
-            if (m_HeadTransform == null || reps_Text == null)
+            if (m_HeadTransform == null)
             {
                 return;
             }
 
-            // Always show reps text if circle tracking is enabled
+            // Always update reps text if circle tracking is enabled (do this first, before any early returns)
             if (m_EnableCircleTracking && reps_Text != null)
             {
-                reps_Text.text = $"Reps: {m_CircleReps}";
+                reps_Text.text = $"Reps: {m_CircleReps}/10";
             }
 
             // Always show quality/ROM text
@@ -169,6 +201,16 @@ namespace PolySpatial.Samples
                 }
             }
 
+            // Update feedback text with last known ROM value
+            if (_hasTrackedOnce)
+            {
+                UpdateFeedbackText(_lastGapToFullReach);
+            }
+            else if (feedbackText != null)
+            {
+                feedbackText.text = ""; // Clear if no tracking yet
+            }
+
             if (m_TouchZeroValue == null || m_TouchZeroPhase == null)
             {
                 return;
@@ -203,8 +245,11 @@ namespace PolySpatial.Samples
                 if (m_EnableCircleTracking)
                 {
                     UpdateCircleTracking(shoulderPos, handPosition, shoulderToHandDistance);
-                    // Update reps text immediately after tracking (in case a circle just completed)
-                    reps_Text.text = $"Reps: {m_CircleReps}";
+                    // Update reps text immediately after tracking (in case a rep just completed)
+                    if (reps_Text != null)
+                    {
+                        reps_Text.text = $"Reps: {m_CircleReps}/10";
+                    }
                 }
                 else
                 {
@@ -231,11 +276,27 @@ namespace PolySpatial.Samples
                     }
                 }
 
-                // Update color lerp based on distance (0.6 is optimal)
-                if (m_DistanceColorLerp != null)
+                // Update color lerp based on distance - only if not reached max reps
+                // Note: gapToFullReach is smaller = better, so we need to invert the logic
+                // For the lerp, we want: small gap (good) = green, large gap (bad) = red
+                if (m_DistanceColorLerp != null && !m_ReachedMaxReps)
                 {
+                    // The DistanceColorLerp expects: distance close to optimalDistance = green
+                    // But gapToFullReach: smaller = better, so we need to set optimalDistance to 0 (or very small)
+                    // Or we can invert: pass a value where smaller gapToFullReach = larger value for lerp
+                    // Actually, let's just set the optimal distance to 0 for gap values
+                    // But the lerp component has its own optimalDistance setting, so we need to work with it
+                    // For now, let's pass the gap directly but the lerp should have optimalDistance = 0
                     m_DistanceColorLerp.SetDistance(gapToFullReach);
                 }
+                else if (m_DistanceColorLerp != null && m_ReachedMaxReps)
+                {
+                    // Deactivate lerp after max reps reached
+                    m_DistanceColorLerp.enabled = false;
+                }
+
+                // Update feedback text based on ROM quality
+                UpdateFeedbackText(gapToFullReach);
             }
             else
             {
@@ -361,7 +422,7 @@ namespace PolySpatial.Samples
                 m_AccumulatedAngle += Mathf.Abs(angleDelta);
 
                 // Debug logging - always show accumulated angle
-                Debug.Log($"Accumulated Angle: {m_AccumulatedAngle:F2}° / 360° (Reps: {m_CircleReps})");
+                Debug.Log($"Accumulated Angle: {m_AccumulatedAngle:F2}° / {m_AnglePerRep}° (Reps: {m_CircleReps})");
                 
                 // Detailed debug logging (if enabled)
                 if (m_DebugAngleTracking)
@@ -369,14 +430,42 @@ namespace PolySpatial.Samples
                     Debug.Log($"Angle: last={lastAngle:F1}°, current={currentAngle:F1}°, delta={angleDelta:F2}°, accumulated={m_AccumulatedAngle:F2}°, reps={m_CircleReps}");
                 }
 
-                // Check if we've completed a full circle (360°)
-                if (m_AccumulatedAngle >= 360f)
+                // Check if we've completed the required angle for one rep (only if not at max)
+                if (m_AccumulatedAngle >= m_AnglePerRep && !m_ReachedMaxReps)
                 {
                     m_CircleReps++;
-                    // Reset accumulated angle, keeping any overflow
-                    m_AccumulatedAngle = m_AccumulatedAngle - 360f;
                     
-                    Debug.Log($"✅ Circle completed! Total reps: {m_CircleReps}, Remaining angle: {m_AccumulatedAngle:F2}°");
+                    // Check if we've reached max reps
+                    if (m_CircleReps >= MAX_REPS)
+                    {
+                        m_CircleReps = MAX_REPS; // Cap at 10
+                        m_ReachedMaxReps = true;
+                        
+                        // Deactivate lerp
+                        if (m_DistanceColorLerp != null)
+                        {
+                            m_DistanceColorLerp.enabled = false;
+                            Debug.Log("DistanceColorLerp deactivated - max reps reached");
+                        }
+                        
+                        Debug.Log($"✅ Max reps ({MAX_REPS}) reached! Stopping rep counting.");
+                    }
+                    
+                    // Reset accumulated angle, keeping any overflow
+                    m_AccumulatedAngle = m_AccumulatedAngle - m_AnglePerRep;
+                    
+                    Debug.Log($"✅ Rep completed! Total reps: {m_CircleReps}/10, Remaining angle: {m_AccumulatedAngle:F2}°");
+                    
+                    // Force UI update immediately after rep completion
+                    if (reps_Text != null)
+                    {
+                        reps_Text.text = $"Reps: {m_CircleReps}/10";
+                        Debug.Log($"UI updated: Reps text set to '{reps_Text.text}'");
+                    }
+                    else
+                    {
+                        Debug.LogWarning("reps_Text is null! Cannot update UI.");
+                    }
                 }
             }
             else
@@ -402,7 +491,41 @@ namespace PolySpatial.Samples
             m_AccumulatedAngle = 0f;
             m_IsTrackingCircle = false;
             m_LastHandDirection = Vector3.zero;
+            m_ReachedMaxReps = false;
+            
+            // Re-enable lerp if it was disabled
+            if (m_DistanceColorLerp != null)
+            {
+                m_DistanceColorLerp.enabled = true;
+            }
+            
             Debug.Log("Circle reps reset to 0");
+        }
+
+        /// <summary>
+        /// Activates the 3D circle and ring visualization objects. Call this after countdown.
+        /// </summary>
+        public void ActivateVisualizationObjects()
+        {
+            if (m_CircleObject != null)
+            {
+                m_CircleObject.SetActive(true);
+                Debug.Log($"Circle visualization object activated: {m_CircleObject.name}");
+            }
+            else
+            {
+                Debug.LogWarning("m_CircleObject is null! Cannot activate circle visualization.");
+            }
+            
+            if (m_RingObject != null)
+            {
+                m_RingObject.SetActive(true);
+                Debug.Log($"Ring visualization object activated: {m_RingObject.name}");
+            }
+            else
+            {
+                Debug.LogWarning("m_RingObject is null! Cannot activate ring visualization.");
+            }
         }
 
         /// <summary>
@@ -411,6 +534,27 @@ namespace PolySpatial.Samples
         public int GetCircleReps()
         {
             return m_CircleReps;
+        }
+
+        /// <summary>
+        /// Updates the feedback text to show "good" or "needs work" based on ROM quality.
+        /// </summary>
+        private void UpdateFeedbackText(float gapToFullReach)
+        {
+            if (feedbackText == null)
+                return;
+
+            // Determine feedback based on ROM distance
+            // Smaller gap = better ROM = "good"
+            // Larger gap = worse ROM = "needs work"
+            if (gapToFullReach < 0.3f)
+            {
+                feedbackText.text = "good";
+            }
+            else
+            {
+                feedbackText.text = "needs work";
+            }
         }
     }
 }

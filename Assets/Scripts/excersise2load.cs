@@ -16,6 +16,9 @@ public class excersise2load : MonoBehaviour
     [Header("Countdown Settings")]
     [SerializeField] private int countdownSeconds = 6;
 
+    [Header("Visualization References")]
+    [SerializeField] private PolySpatial.Samples.PinchDistanceDisplay estimationBehavior;  // Reference to estimation behavior to activate visualization
+
     public event Action OnWorkoutStarted;   // <-- scene manager / spawner can subscribe to this
 
     private bool _isRunning;
@@ -169,6 +172,17 @@ public class excersise2load : MonoBehaviour
                 countdownText.text = t.ToString();
                 Debug.Log($"Countdown: {t}");
             }
+        }
+        
+        // When countdown reaches 0, activate visualization objects (after loop exits)
+        if (estimationBehavior != null)
+        {
+            estimationBehavior.ActivateVisualizationObjects();
+            Debug.Log("Visualization objects (circle and ring) activated at countdown 0");
+        }
+        else
+        {
+            Debug.LogWarning("estimationBehavior is null! Cannot activate visualization objects.");
         }
 
         // Show "GO!" message

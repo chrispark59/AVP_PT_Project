@@ -8,7 +8,8 @@ namespace PolySpatial.Samples
         [SerializeField] private float m_CurrentDistance = 0.6f;
 
         [Header("Optimal Distance")]
-        [SerializeField] private float m_OptimalDistance = 0.6f;
+        [Tooltip("For gap values: 0 = optimal (green), larger = worse (red). For actual distances, set to desired optimal value.")]
+        [SerializeField] private float m_OptimalDistance = 0f;
 
         [Header("Tolerance")]
         [SerializeField] private float m_Tolerance = 0.3f;
