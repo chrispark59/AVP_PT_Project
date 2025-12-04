@@ -122,12 +122,13 @@ namespace PolySpatial.Samples
 
                 // 3. Distances
                 float shoulderToHandDistance = Vector3.Distance(shoulderPos, handPosition);        // raw arm length right now
-                float gapToFullReach        = Vector3.Distance(fullReachEndPoint, handPosition)-0.15f;   // how far from ideal full extension
+                float gapToFullReach = Vector3.Distance(fullReachEndPoint, handPosition)-0.15f;   // how far from ideal full extension
 
                 // Update UI text: show gap to full reach as ROM distance
+                /*
                 m_DistanceText.text =
                     $"ROM Gap (hand → full reach): {gapToFullReach.ToString(m_DistanceFormat)} m\n";
-
+                */
                 if (QualityText != null)
                 {
                     // Simple ROM quality based on how close to "full reach" they are
