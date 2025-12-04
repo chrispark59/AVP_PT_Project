@@ -33,7 +33,7 @@ namespace PolySpatial.Samples
 
         [Header("UI")]
         [SerializeField]
-        private TMP_Text m_DistanceText;                 // TextMeshPro label to show the distance
+        private TMP_Text reps_Text;                 // TextMeshPro label to show the distance
 
         [SerializeField]
         private TMP_Text QualityText;
@@ -71,6 +71,29 @@ namespace PolySpatial.Samples
         [SerializeField]
         private string m_DistanceFormat = "0.00";        // e.g. "1.23"
 
+        [Header("Circle Tracking")]
+        [Tooltip("Enable angle-based circle tracking for arm circles")]
+        [SerializeField]
+        private bool m_EnableCircleTracking = true;
+
+        [Tooltip("Minimum distance from shoulder to start tracking circles (prevents noise when arm is close)")]
+        [SerializeField]
+        private float m_MinCircleTrackingDistance = 0.3f;
+
+        [Tooltip("Minimum angle change per frame to count (filters out noise)")]
+        [SerializeField]
+        private float m_MinAngleDelta = 0.5f;
+
+        [Tooltip("Enable debug logging for angle tracking")]
+        [SerializeField]
+        private bool m_DebugAngleTracking = false;
+
+        // Circle tracking state
+        private float m_AccumulatedAngle = 0f;
+        private int m_CircleReps = 0;
+        private Vector3 m_LastHandDirection = Vector3.zero;
+        private bool m_IsTrackingCircle = false;
+
         private void OnEnable()
         {
             EnhancedTouchSupport.Enable();
@@ -95,10 +118,58 @@ namespace PolySpatial.Samples
                 m_TouchZeroPhase.action.Disable();
         }
 
+        // Store last known values for display when not tracking
+        private float _lastGapToFullReach = 0f;
+        private bool _hasTrackedOnce = false;
+
         private void Update()
         {
-            if (m_HeadTransform == null || m_DistanceText == null ||
-                m_TouchZeroValue == null || m_TouchZeroPhase == null)
+            if (m_HeadTransform == null || reps_Text == null)
+            {
+                return;
+            }
+
+            // Always show reps text if circle tracking is enabled
+            if (m_EnableCircleTracking && reps_Text != null)
+            {
+                reps_Text.text = $"Reps: {m_CircleReps}";
+            }
+
+            // Always show quality/ROM text
+            if (QualityText != null)
+            {
+                if (m_EnableCircleTracking)
+                {
+                    // Show ROM distance in quality text when tracking circles
+                    if (_hasTrackedOnce)
+                    {
+                        QualityText.text = $"ROM: {_lastGapToFullReach.ToString(m_DistanceFormat)} m";
+                    }
+                    else
+                    {
+                        QualityText.text = "ROM: --";
+                    }
+                }
+                else
+                {
+                    if (_hasTrackedOnce)
+                    {
+                        // Simple ROM quality based on how close to "full reach" they are
+                        if (_lastGapToFullReach < 0.3f)
+                            QualityText.text = "ROM: Excellent";
+                        else if (_lastGapToFullReach < 0.6f)
+                            QualityText.text = "ROM: Good";
+                        else
+                            QualityText.text = "ROM: Needs Improvement";
+                    }
+                    else
+                    {
+                        QualityText.text = "ROM: --";
+                    }
+                }
+            }
+
+            if (m_TouchZeroValue == null || m_TouchZeroPhase == null)
             {
                 return;
             }
@@ -122,22 +193,42 @@ namespace PolySpatial.Samples
 
                 // 3. Distances
                 float shoulderToHandDistance = Vector3.Distance(shoulderPos, handPosition);        // raw arm length right now
-                float gapToFullReach = Vector3.Distance(fullReachEndPoint, handPosition)-0.15f;   // how far from ideal full extension
+                float gapToFullReach = Vector3.Distance(fullReachEndPoint, handPosition) - 0.15f;   // how far from ideal full extension
 
-                // Update UI text: show gap to full reach as ROM distance
-                /*
-                m_DistanceText.text =
-                    $"ROM Gap (hand → full reach): {gapToFullReach.ToString(m_DistanceFormat)} m\n";
-                */
+                // Store for display when not tracking
+                _lastGapToFullReach = gapToFullReach;
+                _hasTrackedOnce = true;
+
+                // 4. Circle tracking (angle-based)
+                if (m_EnableCircleTracking)
+                {
+                    UpdateCircleTracking(shoulderPos, handPosition, shoulderToHandDistance);
+                    // Update reps text immediately after tracking (in case a circle just completed)
+                    reps_Text.text = $"Reps: {m_CircleReps}";
+                }
+                else
+                {
+                    reps_Text.text = $"ROM: {gapToFullReach.ToString(m_DistanceFormat)} m";
+                }
+
+                // Update quality text with current values
                 if (QualityText != null)
                 {
-                    // Simple ROM quality based on how close to "full reach" they are
-                    if (gapToFullReach < 0.6f)
-                        QualityText.text = "ROM: Excellent";
-                    else if (gapToFullReach < 0.3f)
-                        QualityText.text = "ROM: Good";
+                    if (m_EnableCircleTracking)
+                    {
+                        // Show ROM distance in quality text when tracking circles
+                        QualityText.text = $"ROM: {gapToFullReach.ToString(m_DistanceFormat)} m";
+                    }
                     else
-                        QualityText.text = "ROM: Needs Improvement";
+                    {
+                        // Simple ROM quality based on how close to "full reach" they are
+                        if (gapToFullReach < 0.3f)
+                            QualityText.text = "ROM: Excellent";
+                        else if (gapToFullReach < 0.6f)
+                            QualityText.text = "ROM: Good";
+                        else
+                            QualityText.text = "ROM: Needs Improvement";
+                    }
                 }
 
                 // Update color lerp based on distance (0.6 is optimal)
@@ -148,9 +239,13 @@ namespace PolySpatial.Samples
             }
             else
             {
-                // Optional: clear text when not pinching
-                // m_DistanceText.text = "ROM: --";
-                // if (QualityText != null) QualityText.text = "";
+                // Don't reset circle tracking when not pinching - allow continuous tracking
+                // Only reset if you want to require pinching for tracking
+                // if (m_EnableCircleTracking)
+                // {
+                //     m_IsTrackingCircle = false;
+                //     m_LastHandDirection = Vector3.zero;
+                // }
             }
         }
 
@@ -206,6 +301,116 @@ namespace PolySpatial.Samples
             Debug.DrawLine(shoulderPos, endPoint, Color.yellow);
 
             return endPoint;
+        }
+
+        /// <summary>
+        /// Updates circle tracking by computing angle changes in the horizontal plane.
+        /// Accumulates angle until a full 360° circle is completed, then increments reps.
+        /// </summary>
+        private void UpdateCircleTracking(Vector3 shoulderPos, Vector3 handPosition, float shoulderToHandDistance)
+        {
+            // Only track if hand is far enough from shoulder (prevents noise)
+            if (shoulderToHandDistance < m_MinCircleTrackingDistance)
+            {
+                if (m_IsTrackingCircle)
+                {
+                    // Debug: log when tracking stops due to distance
+                    // Debug.Log($"Circle tracking paused: hand too close ({shoulderToHandDistance:F2}m < {m_MinCircleTrackingDistance:F2}m)");
+                }
+                m_IsTrackingCircle = false;
+                m_LastHandDirection = Vector3.zero;
+                return;
+            }
+
+            // Compute vector from shoulder to hand
+            Vector3 shoulderToHand = handPosition - shoulderPos;
+
+            // Project onto horizontal plane (remove Y component)
+            Vector3 horizontalDirection = new Vector3(shoulderToHand.x, 0f, shoulderToHand.z);
+
+            // Normalize to get direction
+            if (horizontalDirection.sqrMagnitude < 0.0001f)
+            {
+                // Hand is directly above/below shoulder, can't track angle
+                m_IsTrackingCircle = false;
+                m_LastHandDirection = Vector3.zero;
+                return;
+            }
+
+            horizontalDirection.Normalize();
+
+            // If we have a previous direction, compute the angle change
+            if (m_IsTrackingCircle && m_LastHandDirection.sqrMagnitude > 0.0001f)
+            {
+                // Compute signed angle between last direction and current direction
+                // Using atan2 to get signed angle in the horizontal plane
+                float lastAngle = Mathf.Atan2(m_LastHandDirection.x, m_LastHandDirection.z) * Mathf.Rad2Deg;
+                float currentAngle = Mathf.Atan2(horizontalDirection.x, horizontalDirection.z) * Mathf.Rad2Deg;
+
+                // Compute angle difference (handling wrap-around)
+                float angleDelta = Mathf.DeltaAngle(lastAngle, currentAngle);
+
+                // Filter out very small angle changes (noise)
+                if (Mathf.Abs(angleDelta) < m_MinAngleDelta)
+                {
+                    angleDelta = 0f;
+                }
+
+                // Accumulate the angle change (use absolute value to track total rotation)
+                // Track both clockwise and counterclockwise as positive accumulation
+                m_AccumulatedAngle += Mathf.Abs(angleDelta);
+
+                // Debug logging - always show accumulated angle
+                Debug.Log($"Accumulated Angle: {m_AccumulatedAngle:F2}° / 360° (Reps: {m_CircleReps})");
+                
+                // Detailed debug logging (if enabled)
+                if (m_DebugAngleTracking)
+                {
+                    Debug.Log($"Angle: last={lastAngle:F1}°, current={currentAngle:F1}°, delta={angleDelta:F2}°, accumulated={m_AccumulatedAngle:F2}°, reps={m_CircleReps}");
+                }
+
+                // Check if we've completed a full circle (360°)
+                if (m_AccumulatedAngle >= 360f)
+                {
+                    m_CircleReps++;
+                    // Reset accumulated angle, keeping any overflow
+                    m_AccumulatedAngle = m_AccumulatedAngle - 360f;
+                    
+                    Debug.Log($"✅ Circle completed! Total reps: {m_CircleReps}, Remaining angle: {m_AccumulatedAngle:F2}°");
+                }
+            }
+            else
+            {
+                // Start tracking - initialize
+                if (!m_IsTrackingCircle)
+                {
+                    Debug.Log($"Circle tracking started. Hand distance: {shoulderToHandDistance:F2}m");
+                }
+                m_IsTrackingCircle = true;
+            }
+
+            // Store current direction for next frame
+            m_LastHandDirection = horizontalDirection;
+        }
+
+        /// <summary>
+        /// Resets the circle rep counter. Call this when starting a new exercise set.
+        /// </summary>
+        public void ResetCircleReps()
+        {
+            m_CircleReps = 0;
+            m_AccumulatedAngle = 0f;
+            m_IsTrackingCircle = false;
+            m_LastHandDirection = Vector3.zero;
+            Debug.Log("Circle reps reset to 0");
+        }
+
+        /// <summary>
+        /// Gets the current number of completed circles.
+        /// </summary>
+        public int GetCircleReps()
+        {
+            return m_CircleReps;
         }
     }
 }

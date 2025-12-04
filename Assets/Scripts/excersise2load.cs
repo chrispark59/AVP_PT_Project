@@ -7,7 +7,9 @@ public class excersise2load : MonoBehaviour
 {
     [Header("UI References")]
     [SerializeField] private GameObject startPanelRoot;
-    [SerializeField] private GameObject startContentRoot;  // Assign: StartContentRoot
+    [SerializeField] private GameObject startContentRoot;  // Assign: StartContentRoot (button container)
+    [SerializeField] private GameObject startButton;  // Optional: specific button to hide (if null, will hide startContentRoot)
+    [SerializeField] private TMP_Text startButtonText;  // Optional: specific text component to hide (button label like "Start Workout")
     [SerializeField] private TMP_Text countdownText; 
     [SerializeField] private GameObject workoutHudPanel;    // your rounds / points UI
 
@@ -46,51 +48,79 @@ public class excersise2load : MonoBehaviour
         // Check if startPanelRoot and startContentRoot are the same (would cause issues)
         bool areSameObject = (startPanelRoot != null && startContentRoot != null && startPanelRoot == startContentRoot);
 
-        // First, ensure countdown text is moved to panel root if it's a child of startContentRoot
-        // This must happen BEFORE hiding startContentRoot
-        if (countdownText != null && startPanelRoot != null)
+        // Helper function to check if a transform is a child of another
+        bool IsChildOf(Transform child, Transform parent)
         {
-            // Check if countdown text is a child of startContentRoot
-            bool isChildOfContentRoot = false;
-            if (startContentRoot != null && !areSameObject)
+            if (child == null || parent == null) return false;
+            Transform current = child.parent;
+            while (current != null)
             {
-                Transform currentParent = countdownText.transform.parent;
-                while (currentParent != null)
-                {
-                    if (currentParent == startContentRoot.transform)
-                    {
-                        isChildOfContentRoot = true;
-                        break;
-                    }
-                    currentParent = currentParent.parent;
-                }
+                if (current == parent) return true;
+                current = current.parent;
             }
-
-            // If countdown text is a child of startContentRoot, move it to panel root
-            if (isChildOfContentRoot)
-            {
-                countdownText.transform.SetParent(startPanelRoot.transform, true);
-            }
-            
-            // Ensure countdown text is active and visible
-            countdownText.gameObject.SetActive(true);
+            return false;
         }
 
-        // Wait one frame to ensure parent change and activation have taken effect
-        yield return null;
-
-        // Ensure startPanelRoot is active (needed for countdown text to be visible)
+        // Keep the background visible - startContentRoot likely contains the background
+        // Ensure startPanelRoot is active (parent container)
         if (startPanelRoot != null && !startPanelRoot.activeSelf)
         {
             startPanelRoot.SetActive(true);
         }
 
-        // If they're the same object, we can't hide it yet - just hide the button content
-        // Otherwise, hide start content (button) - countdown should still be visible
-        if (startContentRoot != null && !areSameObject)
+        // Ensure startContentRoot is active (contains the background - we want to keep this visible)
+        if (startContentRoot != null && !areSameObject && !startContentRoot.activeSelf)
         {
-            startContentRoot.SetActive(false);
+            startContentRoot.SetActive(true);
         }
+
+        // Hide only the button and its text, not the background container
+        if (startButton != null)
+        {
+            // Hide the specific button GameObject
+            startButton.SetActive(false);
+        }
+        
+        // Hide the button text if assigned
+        if (startButtonText != null)
+        {
+            startButtonText.gameObject.SetActive(false);
+        }
+        else if (startContentRoot != null && !areSameObject && startButton == null)
+        {
+            // If startButtonText is not assigned but startButton is also not assigned,
+            // try to find and hide any TMP_Text components in startContentRoot that aren't the countdown text
+            TMP_Text[] allTexts = startContentRoot.GetComponentsInChildren<TMP_Text>(true);
+            foreach (TMP_Text text in allTexts)
+            {
+                if (text != countdownText)
+                {
+                    text.gameObject.SetActive(false);
+                }
+            }
+        }
+
+        // Set up countdown text - keep it in the same container as the background
+        // Prefer startContentRoot if it exists (has the background), otherwise use startPanelRoot
+        GameObject backgroundContainer = (startContentRoot != null && !areSameObject) ? startContentRoot : startPanelRoot;
+        
+        if (countdownText != null && backgroundContainer != null)
+        {
+            // Move countdown text to the background container if it's not already there
+            if (!IsChildOf(countdownText.transform, backgroundContainer.transform))
+            {
+                countdownText.transform.SetParent(backgroundContainer.transform, true);
+            }
+            
+            // Set the text immediately to avoid showing default "text" value
+            countdownText.text = countdownSeconds.ToString();
+            
+            // Ensure countdown text is active and visible
+            countdownText.gameObject.SetActive(true);
+        }
+
+        // Wait one frame to ensure parent changes and activation have taken effect
+        yield return null;
 
         // Ensure we're still active (coroutine won't run if GameObject is inactive)
         if (!gameObject.activeInHierarchy)
@@ -167,6 +197,10 @@ public class excersise2load : MonoBehaviour
         {
             workoutHudPanel.SetActive(true);
         }
+        
+        // Invoke workout started event - this will trigger target spawning
+        // Small delay to ensure UI is fully hidden before targets appear
+        yield return new WaitForSeconds(0.1f);
         OnWorkoutStarted?.Invoke();
     }
 
