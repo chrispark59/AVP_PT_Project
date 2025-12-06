@@ -126,7 +126,7 @@ MonoBehaviour:
   orbRenderer: {fileID: 0}
   idleColor: {r: 1, g: 1, b: 1, a: 1}
   targetColor: {r: 1, g: 0, b: 0, a: 1}
-  audioSource: {fileID: 0}
+  audioSource: {fileID: 752762338610008040}
 --- !u!114 &1878137989402061813
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -159,9 +159,9 @@ AudioSource:
   m_Enabled: 1
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
-  m_audioClip: {fileID: 0}
-  m_Resource: {fileID: 0}
-  m_PlayOnAwake: 1
+  m_audioClip: {fileID: 8300000, guid: eeeda5dce5e1d344f8e2f6195f16cb38, type: 3}
+  m_Resource: {fileID: 8300000, guid: eeeda5dce5e1d344f8e2f6195f16cb38, type: 3}
+  m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
   Loop: 0
